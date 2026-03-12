@@ -1,0 +1,81 @@
+---
+- name: Deploy Jekyll demo app
+  hosts: jekyll_hosts
+  become: true
+
+  vars:
+    repo_url: "https://github.com/milo39/jekyll-demo.git"
+    repo_dest: "/home/{{ ansible_user }}/jekyll-demo"
+    repo_version: "main"
+    app_port: 3838
+
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Install Ruby and build dependencies
+      ansible.builtin.apt:
+        name:
+          - ruby-full
+          - build-essential
+          - zlib1g-dev
+        state: present
+
+    - name: Ensure GEM_HOME export exists in .bashrc
+      become: false
+      ansible.builtin.lineinfile:
+        path: "/home/{{ ansible_user }}/.bashrc"
+        line: 'export GEM_HOME="$HOME/gems"'
+        create: true
+
+    - name: Ensure gems bin path export exists in .bashrc
+      become: false
+      ansible.builtin.lineinfile:
+        path: "/home/{{ ansible_user }}/.bashrc"
+        line: 'export PATH="$HOME/gems/bin:$PATH"'
+        create: true
+
+    - name: Clone or update Jekyll repository
+      become: false
+      ansible.builtin.git:
+        repo: "{{ repo_url }}"
+        dest: "{{ repo_dest }}"
+        version: "{{ repo_version }}"
+        update: true
+        force: true
+
+    - name: Install bundler and jekyll into user gem home
+      become: false
+      ansible.builtin.shell: |
+        export GEM_HOME="$HOME/gems"
+        export PATH="$HOME/gems/bin:$PATH"
+        gem install bundler jekyll
+      args:
+        executable: /bin/bash
+
+    - name: Install project gems with bundler
+      become: false
+      ansible.builtin.shell: |
+        export GEM_HOME="$HOME/gems"
+        export PATH="$HOME/gems/bin:$PATH"
+        bundle install
+      args:
+        chdir: "{{ repo_dest }}"
+        executable: /bin/bash
+
+    - name: Stop running Jekyll process if present
+      ansible.builtin.shell: |
+        pkill -f "jekyll serve" || true
+      changed_when: false
+
+    - name: Start Jekyll in background on port 4000
+      become: false
+      ansible.builtin.shell: |
+        export GEM_HOME="$HOME/gems"
+        export PATH="$HOME/gems/bin:$PATH"
+        nohup bundle exec jekyll serve --host 0.0.0.0 --port {{ app_port }} \
+          > "{{ repo_dest }}/jekyll.log" 2>&1 &
+      args:
+        chdir: "{{ repo_dest }}/app"
+        executable: /bin/bash
