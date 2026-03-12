@@ -6,7 +6,7 @@
   vars:
     repo_url: "https://github.com/milo39/jekyll-demo.git"
     repo_dest: "/home/{{ ansible_user }}/jekyll-demo"
-    repo_version: "main"
+    repo_version: "master"
     app_port: 3838
 
   tasks:
@@ -25,14 +25,14 @@
     - name: Ensure GEM_HOME export exists in .bashrc
       become: false
       ansible.builtin.lineinfile:
-        path: "/home/{{ ansible_user }}/.bashrc"
+        path: "/home/{{ ansible_user }}/app/.bashrc"
         line: 'export GEM_HOME="$HOME/gems"'
         create: true
 
     - name: Ensure gems bin path export exists in .bashrc
       become: false
       ansible.builtin.lineinfile:
-        path: "/home/{{ ansible_user }}/.bashrc"
+        path: "/home/{{ ansible_user }}/app/.bashrc"
         line: 'export PATH="$HOME/gems/bin:$PATH"'
         create: true
 
@@ -61,7 +61,7 @@
         export PATH="$HOME/gems/bin:$PATH"
         bundle install
       args:
-        chdir: "{{ repo_dest }}"
+        chdir: "{{ repo_dest }}/app"
         executable: /bin/bash
 
     - name: Stop running Jekyll process if present
